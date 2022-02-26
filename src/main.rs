@@ -23,6 +23,12 @@ fn load_camera(mut commands: Commands) {
 
 fn load_players(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn_bundle(SpriteBundle {
+        transform: Transform::from_xyz(10.0, 10.0, 0.1),
+        texture: asset_server.load("sprites/player_ships/ship_0001.png"),
+        ..Default::default()
+    });
+
+    commands.spawn_bundle(SpriteBundle {
         texture: asset_server.load("sprites/player_ships/ship_0000.png"),
         ..Default::default()
     });
