@@ -32,6 +32,19 @@ fn load_players(mut commands: Commands, asset_server: Res<AssetServer>) {
         texture: asset_server.load("sprites/player_ships/ship_0000.png"),
         ..Default::default()
     });
+
+    commands.spawn_bundle(SpriteBundle {
+        transform: Transform {
+            translation: Vec3::new(0.0, -215.0, 0.0),
+            scale: Vec3::new(120.0, 30.0, 0.0),
+            ..Default::default()
+        },
+        sprite: Sprite {
+            color: Color::rgb(0.5, 0.5, 1.0),
+            ..Default::default()
+        },
+        ..Default::default()
+    });
 }
 
 fn generate_astroids() {}
