@@ -1,7 +1,17 @@
-use bevy::{ecs::query::WithFetch, prelude::*};
+use bevy::prelude::*;
+
+const ROTATION_FACTOR: f32 = 0.05;
+const TRANSLATION_FACTOR: f32 = 0.1;
 
 #[derive(Component)]
 struct Player(u8);
+
+#[derive(Component, Default)]
+struct Inertia {
+    rotational: f32,
+    x: f32,
+    y: f32,
+}
 
 fn main() {
     let mut app = App::new();
@@ -13,6 +23,7 @@ fn main() {
 
     app.add_system(generate_astroids.system());
     app.add_system(handle_input.system());
+    app.add_system(run_inertia.system());
     // app.add_system(printouts.system());
 
     app.run();
@@ -31,7 +42,8 @@ fn load_players(mut commands: Commands, asset_server: Res<AssetServer>) {
             texture: asset_server.load("sprites/player_ships/ship_0001.png"),
             ..Default::default()
         })
-        .insert(Player(0));
+        .insert(Player(0))
+        .insert(Inertia::default());
 
     commands
         .spawn_bundle(SpriteBundle {
@@ -39,10 +51,22 @@ fn load_players(mut commands: Commands, asset_server: Res<AssetServer>) {
             texture: asset_server.load("sprites/player_ships/ship_0000.png"),
             ..Default::default()
         })
-        .insert(Player(1));
+        .insert(Player(1))
+        .insert(Inertia::default());
 }
 
-fn handle_input(input: Res<Input<KeyCode>>, mut players: Query<(&mut Transform, &Player)>) {
+fn run_inertia(mut elements: Query<(&mut Transform, &Inertia)>) {
+    for (mut trans, inertia) in elements.iter_mut() {
+        trans.rotate(Quat::from_rotation_z(inertia.rotational));
+        trans.translation.x = trans.translation.x + inertia.x;
+        trans.translation.y = trans.translation.y + inertia.y;
+    }
+}
+
+fn handle_input(
+    input: Res<Input<KeyCode>>,
+    mut players: Query<(&Transform, &Player, &mut Inertia)>,
+) {
     let mut first_forward = 0.0;
     let mut first_right = 0.0;
 
@@ -51,31 +75,32 @@ fn handle_input(input: Res<Input<KeyCode>>, mut players: Query<(&mut Transform, 
 
     for key in input.get_pressed() {
         match key {
-            KeyCode::A => first_right -= 1.0,
-            KeyCode::D => first_right += 1.0,
-            KeyCode::S => first_forward -= 1.0,
-            KeyCode::W => first_forward += 1.0,
-            KeyCode::Left => second_right -= 1.0,
-            KeyCode::Right => second_right += 1.0,
-            KeyCode::Down => second_forward -= 1.0,
-            KeyCode::Up => second_forward += 1.0,
+            KeyCode::A => first_right -= 0.01,
+            KeyCode::D => first_right += 0.01,
+            KeyCode::S => first_forward -= 0.1,
+            KeyCode::W => first_forward += 0.1,
+            KeyCode::Left => second_right -= 0.01,
+            KeyCode::Right => second_right += 0.01,
+            KeyCode::Down => second_forward -= 0.1,
+            KeyCode::Up => second_forward += 0.1,
             _ => {}
         }
     }
 
-    for (mut trans, player) in players.iter_mut() {
+    for (trans, player, mut inertia) in players.iter_mut() {
+        let curr_rotation = trans.rotation.to_euler(EulerRot::XYZ);
         match player.0 {
             0 => {
-                let curr_rotation = trans.rotation.to_euler(EulerRot::XYZ);
-                trans.translation.y += curr_rotation.2.cos() * first_forward;
-                trans.translation.x += curr_rotation.2.sin() * -first_forward;
-                trans.rotate(Quat::from_rotation_z(first_right * 0.2));
+                inertia.y = (inertia.y + curr_rotation.2.cos() * first_forward).min(0.5);
+                inertia.x = (inertia.x + curr_rotation.2.sin() * -first_forward).min(0.5);
+                inertia.rotational = (inertia.rotational + first_right * 0.2).min(0.1);
+                // trans.rotate(Quat::from_rotation_z(first_right * 0.2));
             }
             1 => {
-                let curr_rotation = trans.rotation.to_euler(EulerRot::XYZ);
-                trans.translation.y += curr_rotation.2.cos() * second_forward;
-                trans.translation.x += curr_rotation.2.sin() * -second_forward;
-                trans.rotate(Quat::from_rotation_z(second_right * 0.2));
+                inertia.y = (inertia.y + curr_rotation.2.cos() * second_forward).min(0.5);
+                inertia.x = (inertia.x + curr_rotation.2.sin() * -second_forward).min(0.5);
+                inertia.rotational = (inertia.rotational + second_right * 0.2).min(0.5);
+                // trans.rotate(Quat::from_rotation_z(first_right * 0.2));
             }
             _ => {}
         }
